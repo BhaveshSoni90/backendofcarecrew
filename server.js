@@ -15,7 +15,7 @@ app.use(session({
 }));
 // CORS configuration
 app.use(cors({
-  origin: 'https://frontendofcarecrew.vercel.app/', // Your frontend URL
+  origin: 'https://frontendofcarecrew.vercel.app', // Your frontend URL
   methods: ['GET', 'POST', 'PATCH'], // Specify allowed methods
   credentials: true // If you want to include credentials like cookies
 }));
