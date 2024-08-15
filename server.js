@@ -3,34 +3,27 @@ const express = require('express');
 const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
 const cors = require('cors');
-const session = require('express-session');
-const MongoStore = require('connect-mongo');
 
 const app = express();
+const session = require('express-session');
 
+app.use(session({
+  secret: 'your_secret_key',
+  resave: false,
+  saveUninitialized: true,
+  cookie: { secure: false } // Set secure to true in production
+}));
 // CORS configuration
 app.use(cors({
   origin: 'http://localhost:3000', // Your frontend URL
-  methods: ['GET', 'POST', 'PATCH'],
-  credentials: true
+  methods: ['GET', 'POST', 'PATCH'], // Specify allowed methods
+  credentials: true // If you want to include credentials like cookies
 }));
 
 app.use(bodyParser.json());
 
-// Session management with MongoDB store
-app.use(session({
-  secret: process.env.SESSION_SECRET || 'your_secret_key',
-  resave: false,
-  saveUninitialized: false,
-  store: MongoStore.create({
-    mongoUrl: process.env.MONGODB_URI,
-    collectionName: 'sessions'
-  }),
-  cookie: { secure: process.env.NODE_ENV === 'production' } // Secure cookies in production
-}));
-
 // MongoDB connection
-mongoose.connect(process.env.MONGODB_URI, {
+mongoose.connect('mongodb+srv://carecrew:bhama90@carecrew.9r659.mongodb.net/?retryWrites=true&w=majority&appName=carecrew' || process.env.MONGODB_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 }).then(() => {
@@ -89,6 +82,7 @@ const bookingSchema = new mongoose.Schema({
   customerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Customer' },
   service: String,
   days: [String],
+  
   status: { type: String, enum: ['Pending', 'Accepted', 'Rejected'], default: 'Pending' },
   createdAt: { type: Date, default: Date.now }
 });
@@ -138,13 +132,15 @@ app.post('/login', async (req, res) => {
     const user = users.find(u => u.password === password);
 
     if (user) {
+      // Exclude the password before sending the response
       const { password, ...userData } = user.toObject();
-      req.session.userId = user._id;
-      req.session.userType = userType;
       return res.status(200).json({ message: 'Login successful', user: userData });
     }
 
     res.status(401).json({ message: 'Invalid password' });
+    req.session.userId = user._id;
+    req.session.userType = userType;
+
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Server error' });
@@ -165,7 +161,6 @@ app.post('/contact', async (req, res) => {
   }
 });
 
-// Profile API
 app.get('/profile', async (req, res) => {
   const userId = req.session.userId;
   const userType = req.session.userType;
@@ -192,6 +187,9 @@ app.get('/profile', async (req, res) => {
   }
 });
 
+
+
+
 // Get all providers
 app.get('/providers', async (req, res) => {
   try {
@@ -203,12 +201,17 @@ app.get('/providers', async (req, res) => {
   }
 });
 
+
 // Book a service
 app.post('/book', async (req, res) => {
-  const { providerId, customerId, service, days } = req.body;
+  const { providerId, customerId, service,days } = req.body;
+
+  // if (!providerId || !customerId || !service) {
+  //   return res.status(400).json({ message: 'Missing Data: Ensure providerId, customerId, and service are all provided and valid.' });
+  // }
 
   try {
-    const newBooking = new Booking({ providerId, customerId, service, days });
+    const newBooking = new Booking({ providerId, customerId, service,days });
     await newBooking.save();
     res.status(200).json({ message: 'Booking successful' });
   } catch (error) {
@@ -217,9 +220,11 @@ app.post('/book', async (req, res) => {
   }
 });
 
+
+// Get bookings for a provider
 // Get bookings for a provider
 app.get('/provider/:providerId/bookings', async (req, res) => {
-  const { providerId } = req.params;
+  const { providerId } = req.params; // Correctly destructuring providerId
 
   try {
     const bookings = await Booking.find({ providerId }).populate('customerId', 'name');
@@ -228,6 +233,7 @@ app.get('/provider/:providerId/bookings', async (req, res) => {
     res.status(500).json({ message: 'Error fetching bookings', error });
   }
 });
+
 
 // Get bookings for a customer
 app.get('/customer/:customerId/bookings', async (req, res) => {
@@ -250,6 +256,10 @@ app.get('/customer/:customerId/bookings', async (req, res) => {
     res.status(500).json({ message: 'Internal server error' });
   }
 });
+
+
+
+
 
 // Update booking status
 app.patch('/booking/:bookingId', async (req, res) => {
