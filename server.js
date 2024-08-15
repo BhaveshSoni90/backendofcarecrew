@@ -1,11 +1,11 @@
 // server.js
-const express = require('express');
 const mongoose = require('mongoose');
+const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
+const session = require('express-session');
 
 const app = express();
-const session = require('express-session');
 
 app.use(session({
   secret: 'your_secret_key',
@@ -13,9 +13,10 @@ app.use(session({
   saveUninitialized: true,
   cookie: { secure: false } // Set secure to true in production
 }));
+
 // CORS configuration
 app.use(cors({
-  origin: 'http://localhost:3000', // Your frontend URL
+  origin: 'http://localhost:3000/', // Replace with your frontend URL
   methods: ['GET', 'POST', 'PATCH'], // Specify allowed methods
   credentials: true // If you want to include credentials like cookies
 }));
@@ -23,9 +24,10 @@ app.use(cors({
 app.use(bodyParser.json());
 
 // MongoDB connection
-mongoose.connect('mongodb://localhost:27017/carecrew', {
+const dbUri = process.env.MONGODB_URI || 'mongodb+srv://bhaveshsoni90:bhama90@carecrew.9r659.mongodb.net/?retryWrites=true&w=majority&appName=carecrew';
+mongoose.connect(dbUri, {
   useNewUrlParser: true,
-  useUnifiedTopology: true,
+  useUnifiedTopology: true
 }).then(() => {
   console.log('Connected to MongoDB');
 }).catch(err => {
@@ -92,7 +94,7 @@ const Provider = mongoose.model('Provider', providerSchema);
 const Contact = mongoose.model('Contact', contactSchema);
 const Booking = mongoose.model('Booking', bookingSchema);
 
-// Signup API
+// API Routes
 app.post('/signup', async (req, res) => {
   const { userType, ...userData } = req.body;
 
@@ -113,7 +115,6 @@ app.post('/signup', async (req, res) => {
   }
 });
 
-// Login API
 app.post('/login', async (req, res) => {
   const { userType, email, password } = req.body;
 
@@ -134,12 +135,12 @@ app.post('/login', async (req, res) => {
     if (user) {
       // Exclude the password before sending the response
       const { password, ...userData } = user.toObject();
+      req.session.userId = user._id;
+      req.session.userType = userType;
       return res.status(200).json({ message: 'Login successful', user: userData });
     }
 
     res.status(401).json({ message: 'Invalid password' });
-    req.session.userId = user._id;
-    req.session.userType = userType;
 
   } catch (error) {
     console.error(error);
@@ -147,7 +148,6 @@ app.post('/login', async (req, res) => {
   }
 });
 
-// Contact form submission API
 app.post('/contact', async (req, res) => {
   const { name, email, message } = req.body;
 
@@ -187,10 +187,6 @@ app.get('/profile', async (req, res) => {
   }
 });
 
-
-
-
-// Get all providers
 app.get('/providers', async (req, res) => {
   try {
     const providers = await Provider.find();
@@ -201,17 +197,11 @@ app.get('/providers', async (req, res) => {
   }
 });
 
-
-// Book a service
 app.post('/book', async (req, res) => {
-  const { providerId, customerId, service,days } = req.body;
-
-  // if (!providerId || !customerId || !service) {
-  //   return res.status(400).json({ message: 'Missing Data: Ensure providerId, customerId, and service are all provided and valid.' });
-  // }
+  const { providerId, customerId, service, days } = req.body;
 
   try {
-    const newBooking = new Booking({ providerId, customerId, service,days });
+    const newBooking = new Booking({ providerId, customerId, service, days });
     await newBooking.save();
     res.status(200).json({ message: 'Booking successful' });
   } catch (error) {
@@ -220,11 +210,8 @@ app.post('/book', async (req, res) => {
   }
 });
 
-
-// Get bookings for a provider
-// Get bookings for a provider
 app.get('/provider/:providerId/bookings', async (req, res) => {
-  const { providerId } = req.params; // Correctly destructuring providerId
+  const { providerId } = req.params;
 
   try {
     const bookings = await Booking.find({ providerId }).populate('customerId', 'name');
@@ -234,8 +221,6 @@ app.get('/provider/:providerId/bookings', async (req, res) => {
   }
 });
 
-
-// Get bookings for a customer
 app.get('/customer/:customerId/bookings', async (req, res) => {
   try {
     const { customerId } = req.params;
@@ -257,11 +242,6 @@ app.get('/customer/:customerId/bookings', async (req, res) => {
   }
 });
 
-
-
-
-
-// Update booking status
 app.patch('/booking/:bookingId', async (req, res) => {
   const { bookingId } = req.params;
   const { status } = req.body;
