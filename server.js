@@ -3,31 +3,28 @@ const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const session = require('express-session');
-const MongoStore = require('connect-mongo'); // For session storage in MongoDB
-const { PORT = 5000, MONGODB_URI, SESSION_SECRET } = process.env;
 
 const app = express();
 
-// CORS configuration
-app.use(cors({
-  origin: 'http://localhost:3000', // Update to your frontend URL if different
-  methods: ['GET', 'POST', 'PATCH'],
-  credentials: true
+// Session configuration
+app.use(session({
+  secret: 'your_secret_key', // Change this to a secure random key in production
+  resave: false,
+  saveUninitialized: true,
+  cookie: { secure: false } // Set secure to true in production if using HTTPS
 }));
 
-// Session management
-app.use(session({
-  secret: SESSION_SECRET || 'your_secret_key',
-  resave: false,
-  saveUninitialized: false,
-  store: MongoStore.create({ mongoUrl: MONGODB_URI }), // Store sessions in MongoDB
-  cookie: { secure: process.env.NODE_ENV === 'production' } // Secure cookies in production
+// CORS configuration
+app.use(cors({
+  origin: 'http://localhost:3000', // Update this to your production frontend URL
+  methods: ['GET', 'POST', 'PATCH'],
+  credentials: true
 }));
 
 app.use(bodyParser.json());
 
 // MongoDB connection
-mongoose.connect(MONGODB_URI, {
+mongoose.connect(process.env.MONGODB_URI || 'mongodb+srv://carecrew:bhama90@carecrew.9r659.mongodb.net/?retryWrites=true&w=majority', {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 }).then(() => {
@@ -42,7 +39,7 @@ const customerSchema = new mongoose.Schema({
   email: String,
   contact: String,
   location: String,
-  password: String,
+  password: String, // Plain text password (not recommended for production)
   species: String,
   breed: String,
   age: String,
@@ -59,7 +56,7 @@ const providerSchema = new mongoose.Schema({
   email: String,
   contact: String,
   location: String,
-  password: String,
+  password: String, // Plain text password (not recommended for production)
   experience: String,
   certifications: String,
   servicesOffered: [String],
@@ -94,6 +91,11 @@ const Customer = mongoose.model('Customer', customerSchema);
 const Provider = mongoose.model('Provider', providerSchema);
 const Contact = mongoose.model('Contact', contactSchema);
 const Booking = mongoose.model('Booking', bookingSchema);
+
+// Test route
+app.get('/test', (req, res) => {
+  res.status(200).send('API is up and running');
+});
 
 // Signup API
 app.post('/signup', async (req, res) => {
@@ -135,13 +137,15 @@ app.post('/login', async (req, res) => {
     const user = users.find(u => u.password === password);
 
     if (user) {
+      // Exclude the password before sending the response
+      const { password, ...userData } = user.toObject();
       req.session.userId = user._id;
       req.session.userType = userType;
-      const { password, ...userData } = user.toObject();
       return res.status(200).json({ message: 'Login successful', user: userData });
     }
 
     res.status(401).json({ message: 'Invalid password' });
+
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Server error' });
@@ -228,9 +232,9 @@ app.get('/provider/:providerId/bookings', async (req, res) => {
 
 // Get bookings for a customer
 app.get('/customer/:customerId/bookings', async (req, res) => {
-  const { customerId } = req.params;
-
   try {
+    const { customerId } = req.params;
+
     if (!customerId) {
       return res.status(400).json({ message: 'Customer ID is required' });
     }
@@ -241,7 +245,7 @@ app.get('/customer/:customerId/bookings', async (req, res) => {
       return res.status(404).json({ message: 'No bookings found for this customer' });
     }
 
-    res.status(200).json(bookings);
+    res.json(bookings);
   } catch (error) {
     console.error('Error fetching bookings:', error);
     res.status(500).json({ message: 'Internal server error' });
@@ -261,6 +265,8 @@ app.patch('/booking/:bookingId', async (req, res) => {
   }
 });
 
+// Server start
+const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
