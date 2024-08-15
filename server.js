@@ -1,29 +1,33 @@
-// server.js
 const express = require('express');
 const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
 const cors = require('cors');
+const session = require('express-session');
+const MongoStore = require('connect-mongo'); // For session storage in MongoDB
+const { PORT = 5000, MONGODB_URI, SESSION_SECRET } = process.env;
 
 const app = express();
-const session = require('express-session');
 
-app.use(session({
-  secret: 'your_secret_key',
-  resave: false,
-  saveUninitialized: true,
-  cookie: { secure: false } // Set secure to true in production
-}));
 // CORS configuration
 app.use(cors({
-  origin: 'http://localhost:3000', // Your frontend URL
-  methods: ['GET', 'POST', 'PATCH'], // Specify allowed methods
-  credentials: true // If you want to include credentials like cookies
+  origin: 'http://localhost:3000', // Update to your frontend URL if different
+  methods: ['GET', 'POST', 'PATCH'],
+  credentials: true
+}));
+
+// Session management
+app.use(session({
+  secret: SESSION_SECRET || 'your_secret_key',
+  resave: false,
+  saveUninitialized: false,
+  store: MongoStore.create({ mongoUrl: MONGODB_URI }), // Store sessions in MongoDB
+  cookie: { secure: process.env.NODE_ENV === 'production' } // Secure cookies in production
 }));
 
 app.use(bodyParser.json());
 
 // MongoDB connection
-mongoose.connect('mongodb+srv://carecrew:bhama90@carecrew.9r659.mongodb.net/?retryWrites=true&w=majority&appName=carecrew' || process.env.MONGODB_URI, {
+mongoose.connect(MONGODB_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 }).then(() => {
@@ -38,7 +42,7 @@ const customerSchema = new mongoose.Schema({
   email: String,
   contact: String,
   location: String,
-  password: String, // Plain text password (not recommended for production)
+  password: String,
   species: String,
   breed: String,
   age: String,
@@ -55,7 +59,7 @@ const providerSchema = new mongoose.Schema({
   email: String,
   contact: String,
   location: String,
-  password: String, // Plain text password (not recommended for production)
+  password: String,
   experience: String,
   certifications: String,
   servicesOffered: [String],
@@ -82,7 +86,6 @@ const bookingSchema = new mongoose.Schema({
   customerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Customer' },
   service: String,
   days: [String],
-  
   status: { type: String, enum: ['Pending', 'Accepted', 'Rejected'], default: 'Pending' },
   createdAt: { type: Date, default: Date.now }
 });
@@ -132,15 +135,13 @@ app.post('/login', async (req, res) => {
     const user = users.find(u => u.password === password);
 
     if (user) {
-      // Exclude the password before sending the response
+      req.session.userId = user._id;
+      req.session.userType = userType;
       const { password, ...userData } = user.toObject();
       return res.status(200).json({ message: 'Login successful', user: userData });
     }
 
     res.status(401).json({ message: 'Invalid password' });
-    req.session.userId = user._id;
-    req.session.userType = userType;
-
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Server error' });
@@ -161,6 +162,7 @@ app.post('/contact', async (req, res) => {
   }
 });
 
+// Profile API
 app.get('/profile', async (req, res) => {
   const userId = req.session.userId;
   const userType = req.session.userType;
@@ -187,9 +189,6 @@ app.get('/profile', async (req, res) => {
   }
 });
 
-
-
-
 // Get all providers
 app.get('/providers', async (req, res) => {
   try {
@@ -201,17 +200,12 @@ app.get('/providers', async (req, res) => {
   }
 });
 
-
 // Book a service
 app.post('/book', async (req, res) => {
-  const { providerId, customerId, service,days } = req.body;
-
-  // if (!providerId || !customerId || !service) {
-  //   return res.status(400).json({ message: 'Missing Data: Ensure providerId, customerId, and service are all provided and valid.' });
-  // }
+  const { providerId, customerId, service, days } = req.body;
 
   try {
-    const newBooking = new Booking({ providerId, customerId, service,days });
+    const newBooking = new Booking({ providerId, customerId, service, days });
     await newBooking.save();
     res.status(200).json({ message: 'Booking successful' });
   } catch (error) {
@@ -220,11 +214,9 @@ app.post('/book', async (req, res) => {
   }
 });
 
-
-// Get bookings for a provider
 // Get bookings for a provider
 app.get('/provider/:providerId/bookings', async (req, res) => {
-  const { providerId } = req.params; // Correctly destructuring providerId
+  const { providerId } = req.params;
 
   try {
     const bookings = await Booking.find({ providerId }).populate('customerId', 'name');
@@ -234,12 +226,11 @@ app.get('/provider/:providerId/bookings', async (req, res) => {
   }
 });
 
-
 // Get bookings for a customer
 app.get('/customer/:customerId/bookings', async (req, res) => {
-  try {
-    const { customerId } = req.params;
+  const { customerId } = req.params;
 
+  try {
     if (!customerId) {
       return res.status(400).json({ message: 'Customer ID is required' });
     }
@@ -250,16 +241,12 @@ app.get('/customer/:customerId/bookings', async (req, res) => {
       return res.status(404).json({ message: 'No bookings found for this customer' });
     }
 
-    res.json(bookings);
+    res.status(200).json(bookings);
   } catch (error) {
     console.error('Error fetching bookings:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 });
-
-
-
-
 
 // Update booking status
 app.patch('/booking/:bookingId', async (req, res) => {
@@ -274,7 +261,6 @@ app.patch('/booking/:bookingId', async (req, res) => {
   }
 });
 
-const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
