@@ -245,11 +245,12 @@ app.get('/customer/:customerId/bookings', async (req, res) => {
     // if (!customerId) {
     //   return res.status(400).json({ message: 'Customer ID is required' });
     // }
-    const bookings = await Booking.find({ customerId });
+    const bookings = await Booking.find({ customerId }).populate('customerId', 'name');
     // if (bookings.length === 0) {
     //   return res.status(404).json({ message: 'No bookings found for this customer' });
     // }
     res.status(200).json(bookings);
+    res.status(200).json({message:'bookings but not showing'});
   } catch (error) {
     console.error('Error fetching bookings:', error);
     res.status(500).json({ message: 'Internal server error' });
