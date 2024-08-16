@@ -146,6 +146,8 @@ app.post('/login', async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 });
+
+//testing that server is running 
 app.post('/test', async (req, res) => {
   res.status(500).json({ message: 'Server is running' });
 });
@@ -228,7 +230,6 @@ app.post('/book', async (req, res) => {
 // Get bookings for a provider
 app.get('/provider/:providerId/bookings', async (req, res) => {
   const { providerId } = req.params; // Correctly destructuring providerId
-
   try {
     const bookings = await Booking.find({ providerId }).populate('customerId', 'name');
     res.status(200).json(bookings);
@@ -237,23 +238,18 @@ app.get('/provider/:providerId/bookings', async (req, res) => {
   }
 });
 
-
 // Get bookings for a customer
 app.get('/customer/:customerId/bookings', async (req, res) => {
+  const { customerId } = req.params;
   try {
-    const { customerId } = req.params;
-
-    if (!customerId) {
-      return res.status(400).json({ message: 'Customer ID is required' });
-    }
-
+    // if (!customerId) {
+    //   return res.status(400).json({ message: 'Customer ID is required' });
+    // }
     const bookings = await Booking.find({ customerId });
-
-    if (bookings.length === 0) {
-      return res.status(404).json({ message: 'No bookings found for this customer' });
-    }
-
-    res.json(bookings);
+    // if (bookings.length === 0) {
+    //   return res.status(404).json({ message: 'No bookings found for this customer' });
+    // }
+    res.status(200).json(bookings);
   } catch (error) {
     console.error('Error fetching bookings:', error);
     res.status(500).json({ message: 'Internal server error' });
