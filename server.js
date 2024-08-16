@@ -206,6 +206,17 @@ app.get('/providers', async (req, res) => {
   }
 });
 
+app.get('/customers', async (req, res) => {
+  try {
+    const customers = await Customer.find();
+    res.status(200).json(customers);
+  } catch (error) {
+    console.error('Error fetching customers :', error);
+    res.status(500).json({ message: 'Error fetching providers' });
+  }
+});
+
+
 
 // Book a service
 app.post('/book', async (req, res) => {
@@ -225,8 +236,6 @@ app.post('/book', async (req, res) => {
   }
 });
 
-
-// Get bookings for a provider
 // Get bookings for a provider
 app.get('/provider/:providerId/bookings', async (req, res) => {
   const { providerId } = req.params; // Correctly destructuring providerId
