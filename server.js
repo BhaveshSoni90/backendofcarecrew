@@ -15,9 +15,9 @@ app.use(session({
 }));
 // CORS configuration
 app.use(cors({
-  origin: 'https://frontendofcarecrew.vercel.app', // Your frontend URL
-  methods: ['GET', 'POST', 'PATCH'], // Specify allowed methods
-  credentials: true // If you want to include credentials like cookies
+  origin: 'https://frontendofcarecrew.vercel.app', 
+  methods: ['GET', 'POST', 'PATCH'],
+  credentials: true
 }));
 
 app.use(bodyParser.json());
@@ -38,7 +38,7 @@ const customerSchema = new mongoose.Schema({
   email: String,
   contact: String,
   location: String,
-  password: String, // Plain text password (not recommended for production)
+  password: String, 
   species: String,
   breed: String,
   age: String,
@@ -55,7 +55,7 @@ const providerSchema = new mongoose.Schema({
   email: String,
   contact: String,
   location: String,
-  password: String, // Plain text password (not recommended for production)
+  password: String, 
   experience: String,
   certifications: String,
   servicesOffered: [String],
