@@ -11,7 +11,7 @@ app.use(session({
   secret: 'your_secret_key',
   resave: false,
   saveUninitialized: true,
-  cookie: { secure: false } // Set secure to true in production
+  cookie: { secure: false } 
 }));
 // CORS configuration
 app.use(cors({
@@ -152,7 +152,7 @@ app.post('/test', async (req, res) => {
   res.status(500).json({ message: 'Server is running' });
 });
 
-// Contact form submission API
+// Contact form API
 app.post('/contact', async (req, res) => {
   const { name, email, message } = req.body;
 
@@ -264,10 +264,6 @@ app.get('/customer/:customerId/bookings', async (req, res) => {
     res.status(500).json({ message: 'Internal server error' });
   }
 });
-
-
-
-
 
 // Update booking status
 app.patch('/booking/:bookingId', async (req, res) => {
