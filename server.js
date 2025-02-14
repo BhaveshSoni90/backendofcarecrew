@@ -1,8 +1,9 @@
+// server.js
 const express = require('express');
 const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
 const cors = require('cors');
-const bcrypt = require('bcrypt');
+
 const app = express();
 const session = require('express-session');
 
@@ -10,11 +11,11 @@ app.use(session({
   secret: 'your_secret_key',
   resave: false,
   saveUninitialized: true,
-  cookie: { secure: false }
+  cookie: { secure: false } 
 }));
-
+// CORS configuration
 app.use(cors({
-  origin: 'https://frontendofcarecrew.vercel.app',
+  origin: 'https://frontendofcarecrew.vercel.app', 
   methods: ['GET', 'POST', 'PATCH'],
   credentials: true
 }));
@@ -81,6 +82,7 @@ const bookingSchema = new mongoose.Schema({
   customerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Customer' },
   service: String,
   days: [String],
+  
   status: { type: String, enum: ['Pending', 'Accepted', 'Rejected'], default: 'Pending' },
   createdAt: { type: Date, default: Date.now }
 });
@@ -92,18 +94,15 @@ const Booking = mongoose.model('Booking', bookingSchema);
 
 // Signup API
 app.post('/signup', async (req, res) => {
-  const { userType, password, ...userData } = req.body;
+  const { userType, ...userData } = req.body;
 
   try {
-    // Hash the password before saving
-    const hashedPassword = await bcrypt.hash(password, 10);
-
     if (userType === 'petOwner') {
-      const newCustomer = new Customer({ ...userData, password: hashedPassword });
+      const newCustomer = new Customer(userData);
       await newCustomer.save();
       res.status(201).json({ message: 'Customer created successfully' });
     } else if (userType === 'petCareProvider') {
-      const newProvider = new Provider({ ...userData, password: hashedPassword });
+      const newProvider = new Provider(userData);
       await newProvider.save();
       res.status(201).json({ message: 'Provider created successfully' });
     } else {
@@ -119,28 +118,29 @@ app.post('/login', async (req, res) => {
   const { userType, email, password } = req.body;
 
   try {
-    let user;
+    let users;
     if (userType === 'petOwner') {
-      user = await Customer.findOne({ email });
+      users = await Customer.find({ email });
     } else if (userType === 'petCareProvider') {
-      user = await Provider.findOne({ email });
+      users = await Provider.find({ email });
     }
 
-    if (!user) {
+    if (!users || users.length === 0) {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Compare the hashed password
-    const match = await bcrypt.compare(password, user.password);
+    const user = users.find(u => u.password === password);
 
-    if (match) {
+    if (user) {
+      // Exclude the password before sending the response
       const { password, ...userData } = user.toObject();
-      req.session.userId = user._id;
-      req.session.userType = userType;
       return res.status(200).json({ message: 'Login successful', user: userData });
     }
 
     res.status(401).json({ message: 'Invalid password' });
+    req.session.userId = user._id;
+    req.session.userType = userType;
+
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Server error' });
@@ -166,6 +166,35 @@ app.post('/contact', async (req, res) => {
   }
 });
 
+app.get('/profile', async (req, res) => {
+  const userId = req.session.userId;
+  const userType = req.session.userType;
+
+  if (!userId || !userType) {
+    return res.status(401).json({ message: 'Not logged in' });
+  }
+
+  try {
+    let user;
+    if (userType === 'petOwner') {
+      user = await Customer.findById(userId);
+    } else if (userType === 'petCareProvider') {
+      user = await Provider.findById(userId);
+    }
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.status(200).json(user);
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err });
+  }
+});
+
+
+
+
 // Get all providers
 app.get('/providers', async (req, res) => {
   try {
@@ -177,23 +206,28 @@ app.get('/providers', async (req, res) => {
   }
 });
 
-// Get all customers
 app.get('/customers', async (req, res) => {
   try {
     const customers = await Customer.find();
     res.status(200).json(customers);
   } catch (error) {
     console.error('Error fetching customers :', error);
-    res.status(500).json({ message: 'Error fetching customers' });
+    res.status(500).json({ message: 'Error fetching providers' });
   }
 });
 
+
+
 // Book a service
 app.post('/book', async (req, res) => {
-  const { providerId, customerId, service, days } = req.body;
+  const { providerId, customerId, service,days } = req.body;
+
+  // if (!providerId || !customerId || !service) {
+  //   return res.status(400).json({ message: 'Missing Data: Ensure providerId, customerId, and service are all provided and valid.' });
+  // }
 
   try {
-    const newBooking = new Booking({ providerId, customerId, service, days });
+    const newBooking = new Booking({ providerId, customerId, service,days });
     await newBooking.save();
     res.status(200).json({ message: 'Booking successful' });
   } catch (error) {
@@ -204,7 +238,7 @@ app.post('/book', async (req, res) => {
 
 // Get bookings for a provider
 app.get('/provider/:providerId/bookings', async (req, res) => {
-  const { providerId } = req.params;
+  const { providerId } = req.params; // Correctly destructuring providerId
   try {
     const bookings = await Booking.find({ providerId }).populate('customerId', 'name');
     res.status(200).json(bookings);
@@ -217,7 +251,13 @@ app.get('/provider/:providerId/bookings', async (req, res) => {
 app.get('/customer/:customerId/bookings', async (req, res) => {
   const { customerId } = req.params;
   try {
+    // if (!customerId) {
+    //   return res.status(400).json({ message: 'Customer ID is required' });
+    // }
     const bookings = await Booking.find({ customerId });
+    // if (bookings.length === 0) {
+    //   return res.status(404).json({ message: 'No bookings found for this customer' });
+    // }
     res.json(bookings);
   } catch (error) {
     console.error('Error fetching bookings:', error);
