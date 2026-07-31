@@ -23,7 +23,7 @@ app.use(bodyParser.json());
 
 // MongoDB connection
 //t('mongodb+srv://carecrew:bhama90@carecrew.9r659.mongodb.net/?retryWrites=true&w=majority&appName=carecrew' 
-mongoose.connect('mongodb+srv://bhaveshbhama827:bhama90%40@carecrewapi.vp0dj3o.mongodb.net/?appName=carecrewapi' || process.env.MONGODB_URI, {
+mongoose.connect('mongodb+srv://bhaveshbhama827:bhama90@carecrewapi.vp0dj3o.mongodb.net/?appName=carecrewapi' || process.env.MONGODB_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 }).then(() => {
